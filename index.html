@@ -2,167 +2,265 @@
 <html lang="pt-BR">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
-<title>Matriz micro:bit</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+<title>Teste Bluetooth micro:bit (UART)</title>
 <style>
-  :root { --bg:#0f172a; --card:#1e293b; --txt:#e2e8f0; --suave:#94a3b8; --ok:#22c55e; --off:#334155; --on:#ef4444; }
-  * { box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
-  body { margin:0; padding:16px; min-height:100vh; background:var(--bg); color:var(--txt);
-         font-family:system-ui,-apple-system,Roboto,sans-serif; display:flex; flex-direction:column; align-items:center; gap:14px; }
-  h1 { font-size:1.2rem; margin:4px 0 0; }
-  .card { width:100%; max-width:420px; background:var(--card); border-radius:16px; padding:16px; }
-  button { font:inherit; color:var(--txt); background:#334155; border:0; border-radius:12px; padding:12px 14px; touch-action:manipulation; }
-  button:active { transform:scale(.97); }
-  button:disabled { opacity:.45; }
-  .principal { width:100%; padding:16px; font-size:1.05rem; font-weight:700; background:var(--ok); color:#052e16; }
-  #status { display:flex; align-items:center; gap:8px; margin-top:12px; }
-  #dot { width:12px; height:12px; border-radius:50%; background:#64748b; }
-  #dot.on { background:var(--ok); box-shadow:0 0 8px var(--ok); }
-  #dot.busy { background:#facc15; }
-  #grade { display:grid; grid-template-columns:repeat(5,1fr); gap:8px; max-width:340px; margin:0 auto;
-           touch-action:none; user-select:none; -webkit-user-select:none; }
-  .led { aspect-ratio:1; border-radius:50%; background:var(--off); }
-  .led.on { background:var(--on); box-shadow:0 0 14px var(--on); }
-  .linha { display:flex; flex-wrap:wrap; gap:8px; margin-top:12px; }
-  .linha button { flex:1 1 auto; }
-  #aviso { display:none; color:#f87171; font-size:.9rem; margin-top:10px; line-height:1.4; }
-  pre { margin:0; font:.78rem/1.4 ui-monospace,monospace; color:var(--suave); max-height:160px; overflow:auto; white-space:pre-wrap; }
-  h2 { font-size:.9rem; margin:0 0 8px; color:var(--suave); }
+  :root {
+    --bg: #0f172a; --card: #1e293b; --texto: #e2e8f0; --suave: #94a3b8;
+    --acento: #22c55e; --led-off: #334155; --led-on: #ef4444; --erro: #f87171;
+  }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  body {
+    margin: 0; padding: 16px; min-height: 100vh;
+    background: var(--bg); color: var(--texto);
+    font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    display: flex; flex-direction: column; align-items: center; gap: 14px;
+  }
+  h1 { font-size: 1.25rem; margin: 4px 0 0; }
+  .card { width: 100%; max-width: 420px; background: var(--card); border-radius: 16px; padding: 16px; }
+  button {
+    font: inherit; color: var(--texto); background: #334155;
+    border: 0; border-radius: 12px; padding: 12px 14px; cursor: pointer; touch-action: manipulation;
+  }
+  button:active { transform: scale(.97); }
+  button.principal { background: var(--acento); color: #052e16; font-weight: 700; width: 100%; padding: 16px; font-size: 1.05rem; }
+  button.perigo { background: #7f1d1d; }
+  button:disabled { opacity: .45; }
+  #status { display: flex; align-items: center; gap: 8px; margin-top: 12px; font-size: .95rem; }
+  #bolinha { width: 12px; height: 12px; border-radius: 50%; background: #64748b; flex: none; }
+  #bolinha.on { background: var(--acento); box-shadow: 0 0 8px var(--acento); }
+  #bolinha.busy { background: #facc15; }
+  #grade {
+    display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px;
+    touch-action: none; user-select: none; -webkit-user-select: none;
+    margin: 4px auto 0; width: 100%; max-width: 340px;
+  }
+  .led { aspect-ratio: 1; border-radius: 50%; background: var(--led-off); transition: background .08s, box-shadow .08s; }
+  .led.on { background: var(--led-on); box-shadow: 0 0 14px var(--led-on); }
+  .linha { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+  .linha button { flex: 1 1 auto; }
+  label.auto { display: flex; align-items: center; gap: 8px; margin-top: 12px; color: var(--suave); font-size: .92rem; }
+  label.auto input { width: 20px; height: 20px; }
+  #aviso { color: var(--erro); font-size: .9rem; margin-top: 10px; display: none; line-height: 1.4; }
+  #log { font: .78rem/1.4 ui-monospace, Menlo, monospace; color: var(--suave); max-height: 150px; overflow: auto; white-space: pre-wrap; margin: 0; }
+  h2 { font-size: .95rem; margin: 0 0 8px; color: var(--suave); font-weight: 600; }
 </style>
 </head>
 <body>
-<h1>Matriz de LEDs – micro:bit</h1>
+
+<h1>🔵 Teste Bluetooth UART – micro:bit V2</h1>
 
 <div class="card">
-  <button id="btnConectar" class="principal">Conectar</button>
-  <div id="status"><span id="dot"></span><span id="txtStatus">Desconectado</span></div>
+  <button id="btnConectar" class="principal">Conectar à micro:bit</button>
+  <button id="btnTodos" style="margin-top:10px;width:100%">Diagnóstico: listar TODOS os dispositivos</button>
+  <div id="status"><span id="bolinha"></span><span id="textoStatus">Desconectado</span></div>
   <div id="aviso"></div>
 </div>
 
 <div class="card">
+  <h2>Toque ou arraste para acender/apagar</h2>
   <div id="grade"></div>
+  <label class="auto">
+    <input type="checkbox" id="auto" checked>
+    Enviar automaticamente a cada toque
+  </label>
   <div class="linha">
-    <button id="btnLimpar">Limpar</button>
+    <button id="btnEnviar">Enviar agora</button>
+    <button id="btnLimpar" class="perigo">Limpar</button>
     <button id="btnTudo">Acender tudo</button>
     <button id="btnInverter">Inverter</button>
   </div>
+</div>
+
+<div class="card">
+  <h2>Desenhos prontos</h2>
   <div class="linha" id="presets"></div>
 </div>
 
-<div class="card"><h2>Registro</h2><pre id="log"></pre></div>
+<div class="card">
+  <h2>Registro</h2>
+  <pre id="log"></pre>
+</div>
 
 <script>
+// ===== Nordic UART Service (usado pela micro:bit) =====
 const UART_SERVICE = '6e400001-b5a3-f393-e0a9-e50e24dcca9e';
-const UART_RX      = '6e400002-b5a3-f393-e0a9-e50e24dcca9e'; // celular escreve aqui
-const CODIGO       = '0123456789ABCDEFGHIJKLMNOPQRSTUV';      // 1 caractere = 1 linha (0..31)
+const UART_RX      = '6e400002-b5a3-f393-e0a9-e50e24dcca9e'; // o celular ESCREVE aqui
+const TAM_PACOTE   = 20; // limite padrão do BLE; a micro:bit junta os pedaços até a quebra de linha
+
+const N = 5;
+let estado = Array.from({ length: N }, () => Array(N).fill(false));
+let dispositivo = null;
+let caracteristica = null;
 
 const $ = id => document.getElementById(id);
-const log = m => { const p = $('log'); p.textContent += new Date().toLocaleTimeString('pt-BR') + '  ' + m + '\n'; p.scrollTop = p.scrollHeight; };
-const setStatus = (t, c) => { $('txtStatus').textContent = t; $('dot').className = c || ''; };
+const grade = $('grade');
+const celulas = [];
 
-let estado = Array.from({length:5}, () => Array(5).fill(false));
-let dispositivo = null, rx = null;
-
-// ----- grade -----
-const grade = $('grade'), celulas = [];
-for (let y = 0; y < 5; y++) for (let x = 0; x < 5; x++) {
-  const d = document.createElement('div'); d.className = 'led'; d.dataset.x = x; d.dataset.y = y;
-  grade.appendChild(d); celulas.push(d);
+function log(msg) {
+  const hora = new Date().toLocaleTimeString('pt-BR');
+  $('log').textContent += `[${hora}] ${msg}\n`;
+  $('log').scrollTop = $('log').scrollHeight;
 }
-const desenhar = () => celulas.forEach(c => c.classList.toggle('on', estado[+c.dataset.y][+c.dataset.x]));
+function setStatus(texto, modo) {
+  $('textoStatus').textContent = texto;
+  $('bolinha').className = modo || '';
+}
 
-let pintando = false, valor = true;
-const celulaEm = e => { const el = document.elementFromPoint(e.clientX, e.clientY); return el && el.classList.contains('led') ? el : null; };
+// ===== Grade =====
+for (let y = 0; y < N; y++) {
+  for (let x = 0; x < N; x++) {
+    const d = document.createElement('div');
+    d.className = 'led';
+    d.dataset.x = x; d.dataset.y = y;
+    grade.appendChild(d);
+    celulas.push(d);
+  }
+}
+function desenhar() {
+  celulas.forEach(c => c.classList.toggle('on', estado[+c.dataset.y][+c.dataset.x]));
+}
+
+let pintando = false, valorPintura = true;
+function celulaNoPonto(e) {
+  const el = document.elementFromPoint(e.clientX, e.clientY);
+  return el && el.classList.contains('led') ? el : null;
+}
 grade.addEventListener('pointerdown', e => {
-  const c = celulaEm(e); if (!c) return; e.preventDefault();
-  pintando = true; valor = !estado[+c.dataset.y][+c.dataset.x];
-  estado[+c.dataset.y][+c.dataset.x] = valor; desenhar(); enviar();
+  const c = celulaNoPonto(e);
+  if (!c) return;
+  e.preventDefault();
+  pintando = true;
+  valorPintura = !estado[+c.dataset.y][+c.dataset.x];
+  estado[+c.dataset.y][+c.dataset.x] = valorPintura;
+  desenhar();
+  if ($('auto').checked) enviar();
 });
 grade.addEventListener('pointermove', e => {
-  if (!pintando) return; const c = celulaEm(e); if (!c) return;
+  if (!pintando) return;
+  const c = celulaNoPonto(e);
+  if (!c) return;
   const x = +c.dataset.x, y = +c.dataset.y;
-  if (estado[y][x] !== valor) { estado[y][x] = valor; desenhar(); enviar(); }
-});
-['pointerup','pointercancel'].forEach(ev => window.addEventListener(ev, () => pintando = false));
-
-// ----- botões / desenhos -----
-const PRESETS = {
-  '❤️':['01010','11111','11111','01110','00100'], '🙂':['01010','01010','00000','10001','01110'],
-  '⬆️':['00100','01110','10101','00100','00100'], '✖️':['10001','01010','00100','01010','10001'],
-  '⬛':['11111','10001','10001','10001','11111'], '⭐':['00100','00100','11111','01110','10001']
-};
-for (const [nome, ls] of Object.entries(PRESETS)) {
-  const b = document.createElement('button'); b.textContent = nome; b.style.fontSize = '1.4rem';
-  b.onclick = () => { estado = ls.map(l => [...l].map(c => c === '1')); desenhar(); enviar(); };
-  $('presets').appendChild(b);
-}
-$('btnLimpar').onclick   = () => { estado = estado.map(l => l.map(() => false)); desenhar(); enviar(); };
-$('btnTudo').onclick     = () => { estado = estado.map(l => l.map(() => true));  desenhar(); enviar(); };
-$('btnInverter').onclick = () => { estado = estado.map(l => l.map(v => !v));     desenhar(); enviar(); };
-
-// ----- mensagem curta: "m" + 5 caracteres (um por linha) + quebra de linha -----
-function mensagem() {
-  let s = 'm';
-  for (let y = 0; y < 5; y++) {
-    let v = 0;
-    for (let x = 0; x < 5; x++) if (estado[y][x]) v |= 16 >> x;
-    s += CODIGO[v];
+  if (estado[y][x] !== valorPintura) {
+    estado[y][x] = valorPintura;
+    desenhar();
+    if ($('auto').checked) enviar();
   }
-  return s + '\n';
+});
+['pointerup', 'pointercancel', 'pointerleave'].forEach(ev =>
+  grade.addEventListener(ev, () => { pintando = false; }));
+
+// ===== Desenhos prontos =====
+const PRESETS = {
+  '❤️ Coração': ['01010','11111','11111','01110','00100'],
+  '🙂 Rosto':   ['01010','01010','00000','10001','01110'],
+  '⬆️ Seta':    ['00100','01110','10101','00100','00100'],
+  '✖️ X':       ['10001','01010','00100','01010','10001'],
+  '⬛ Quadrado':['11111','10001','10001','10001','11111'],
+  '⭐ Estrela': ['00100','00100','11111','01110','10001']
+};
+Object.entries(PRESETS).forEach(([nome, linhas]) => {
+  const b = document.createElement('button');
+  b.textContent = nome;
+  b.onclick = () => { estado = linhas.map(l => [...l].map(ch => ch === '1')); desenhar(); enviar(); };
+  $('presets').appendChild(b);
+});
+$('btnLimpar').onclick = () => { estado = estado.map(l => l.map(() => false)); desenhar(); enviar(); };
+$('btnTudo').onclick = () => { estado = estado.map(l => l.map(() => true)); desenhar(); enviar(); };
+$('btnInverter').onclick = () => { estado = estado.map(l => l.map(v => !v)); desenhar(); enviar(); };
+$('btnEnviar').onclick = () => enviar(true);
+
+// ===== Mensagem: 25 caracteres '0'/'1' (linha por linha) + '\n' =====
+function paraTexto() {
+  return estado.map(l => l.map(v => (v ? '1' : '0')).join('')).join('') + '\n';
 }
 
+// ===== Envio com fila, em pacotes de até 20 bytes =====
 let enviando = false, pendente = false;
-async function enviar() {
-  if (!rx) return;
+async function enviar(manual) {
+  if (!caracteristica) {
+    if (manual) log('Conecte à micro:bit primeiro.');
+    return;
+  }
   if (enviando) { pendente = true; return; }
   enviando = true;
   try {
     do {
       pendente = false;
-      const msg = mensagem();
-      await rx.writeValue(new TextEncoder().encode(msg));
-      log('enviado: ' + msg.trim());
+      const texto = paraTexto();
+      const bytes = new TextEncoder().encode(texto);
+      for (let i = 0; i < bytes.length; i += TAM_PACOTE) {
+        await caracteristica.writeValue(bytes.slice(i, i + TAM_PACOTE));
+      }
+      log('Enviado: ' + texto.trim());
     } while (pendente);
-  } catch (e) { log('erro ao enviar: ' + e.message); }
-  enviando = false;
+  } catch (err) {
+    log('Erro ao enviar: ' + err.message);
+    setStatus('Erro ao enviar', 'busy');
+  } finally {
+    enviando = false;
+  }
 }
 
-// ----- conexão -----
-function aoDesconectar() { rx = null; $('btnConectar').textContent = 'Conectar'; setStatus('Desconectado'); log('desconectado'); }
+// ===== Conexão =====
+function aoDesconectar() {
+  caracteristica = null;
+  $('btnConectar').textContent = 'Conectar à micro:bit';
+  setStatus('Desconectado', '');
+  log('Desconectado.');
+}
 
-$('btnConectar').onclick = async () => {
-  if (dispositivo && dispositivo.gatt.connected) { dispositivo.gatt.disconnect(); return; }
-  try {
-    setStatus('Procurando…', 'busy');
-    // Sem filtro nenhum: lista TODOS os dispositivos Bluetooth que o celular enxerga
-    dispositivo = await navigator.bluetooth.requestDevice({
-      acceptAllDevices: true,
-      optionalServices: [UART_SERVICE]
-    });
-    log('escolhido: ' + (dispositivo.name || '(sem nome)'));
-    dispositivo.addEventListener('gattserverdisconnected', aoDesconectar);
-    setStatus('Conectando…', 'busy');
-    const srv = await dispositivo.gatt.connect();
-    const svc = await srv.getPrimaryService(UART_SERVICE);
-    rx = await svc.getCharacteristic(UART_RX);
-    setStatus('Conectado: ' + (dispositivo.name || 'micro:bit'), 'on');
-    $('btnConectar').textContent = 'Desconectar';
-    log('UART pronto');
-    enviar();
-  } catch (e) {
-    log('falhou: ' + e.name + ' - ' + e.message);
-    setStatus(e.name === 'NotFoundError' ? 'Nada escolhido / não encontrado' : 'Falha na conexão');
+async function conectar(todos) {
+  if (dispositivo && dispositivo.gatt.connected) {
+    dispositivo.gatt.disconnect();
+    return;
   }
-};
+  try {
+    setStatus('Procurando dispositivo…', 'busy');
+    log(todos ? 'Abrindo seletor (TODOS os dispositivos)…' : 'Abrindo seletor (filtro micro:bit)…');
+    const opcoes = todos
+      ? { acceptAllDevices: true, optionalServices: [UART_SERVICE] }
+      : { filters: [{ namePrefix: 'BBC micro:bit' }], optionalServices: [UART_SERVICE] };
+    dispositivo = await navigator.bluetooth.requestDevice(opcoes);
+    log('Selecionado: ' + (dispositivo.name || '(sem nome)'));
+    dispositivo.addEventListener('gattserverdisconnected', aoDesconectar);
+
+    setStatus('Conectando…', 'busy');
+    const servidor = await dispositivo.gatt.connect();
+    log('GATT conectado.');
+
+    const servico = await servidor.getPrimaryService(UART_SERVICE);
+    log('Serviço UART encontrado.');
+    caracteristica = await servico.getCharacteristic(UART_RX);
+    log('Característica RX encontrada.');
+
+    setStatus('Conectado a ' + (dispositivo.name || 'micro:bit'), 'on');
+    $('btnConectar').textContent = 'Desconectar';
+    await enviar();
+  } catch (err) {
+    log('Falhou: ' + err.name + ' – ' + err.message);
+    if (/service/i.test(err.message)) {
+      log('Dica: a micro:bit precisa estar com o programa que tem bluetooth.startUartService().');
+    }
+    setStatus(err.name === 'NotFoundError' && !/service/i.test(err.message) ? 'Nenhum dispositivo escolhido' : 'Falha na conexão', '');
+  }
+}
+$('btnConectar').onclick = () => conectar(false);
+$('btnTodos').onclick = () => conectar(true);
 
 if (!navigator.bluetooth) {
   $('btnConectar').disabled = true;
-  $('aviso').style.display = 'block';
-  $('aviso').innerHTML = 'Sem Web Bluetooth. Use o <b>Chrome no Android</b> (no iPhone, o app <b>Bluefy</b>) e abra a página em <b>HTTPS</b>.';
-  setStatus('Web Bluetooth indisponível');
+  $('btnTodos').disabled = true;
+  const a = $('aviso');
+  a.style.display = 'block';
+  a.innerHTML = 'Este navegador não suporta Web Bluetooth. No Android use o <b>Chrome</b>; ' +
+    'no iPhone/iPad use o <b>Bluefy</b>. A página precisa estar em <b>HTTPS</b>.';
+  setStatus('Web Bluetooth indisponível', '');
+  log('navigator.bluetooth indisponível. HTTPS? ' + window.isSecureContext);
 }
+
 desenhar();
-log('pronto');
+log('Pronto. Toque em "Conectar à micro:bit".');
 </script>
 </body>
 </html>
