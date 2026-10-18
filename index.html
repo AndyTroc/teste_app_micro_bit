@@ -48,7 +48,7 @@
 </head>
 <body>
 
-<h1>🔵 Teste Bluetooth UART – micro:bit</h1>
+<h1>🔵 Teste Bluetooth UART – micro:bit V2</h1>
 
 <div class="card">
   <button id="btnConectar" class="principal">Conectar à micro:bit</button>
@@ -237,9 +237,16 @@ async function conectar(todos) {
 
     const servico = await servidor.getPrimaryService(UART_SERVICE);
     log('Serviço UART encontrado.');
-    caracteristica = await servico.getCharacteristic(UART_RX);
-    log('Característica RX encontrada. Permite: ' +
-      Object.entries(caracteristica.properties).filter(([, v]) => v).map(([k]) => k).join(', '));
+    // Procura, dentro do serviço UART, a característica que aceita ESCRITA
+    // (na micro:bit os papéis RX/TX são invertidos em relação ao UART da Nordic)
+    const caracs = await servico.getCharacteristics();
+    for (const c of caracs) {
+      log('Característica ' + c.uuid.slice(0, 8) + ': ' +
+        Object.entries(c.properties).filter(([, v]) => v).map(([k]) => k).join(', '));
+    }
+    caracteristica = caracs.find(c => c.properties.write || c.properties.writeWithoutResponse);
+    if (!caracteristica) throw new Error('Nenhuma característica de escrita no serviço UART');
+    log('Vou escrever em: ' + caracteristica.uuid.slice(0, 8));
 
     setStatus('Conectado a ' + (dispositivo.name || 'micro:bit'), 'on');
     $('btnConectar').textContent = 'Desconectar';
