@@ -95,13 +95,12 @@
 <body>
 <main>
   <h1>Controle da micro:bit</h1>
-  <p class="sub">Conecte a placa por Bluetooth ou USB e controle a fita de LEDs NeoPixel pelo navegador.</p>
+  <p class="sub">Conecte a placa por USB e controle a fita de LEDs NeoPixel pelo navegador.</p>
 
   <section aria-labelledby="t-conexao">
     <h2 id="t-conexao">Conexão</h2>
     <div class="linha">
-      <button id="btnBle" class="primario">Conectar por Bluetooth</button>
-      <button id="btnUsb">Conectar por USB</button>
+      <button id="btnUsb" class="primario">Conectar por USB</button>
       <button id="btnDesconectar" disabled>Desconectar</button>
       <span id="estado" class="estado" role="status"><span class="ponto"></span><span id="estadoTxt">Desconectado</span></span>
     </div>
@@ -136,9 +135,9 @@
     <details>
       <summary>Código para a micro:bit (MakeCode)</summary>
       <ol>
-        <li>No MakeCode, adicione as extensões <b>Bluetooth</b> e <b>NeoPixel</b>.</li>
-        <li>Para usar Bluetooth, remova a extensão de rádio, se existir, e em Configurações do projeto escolha o pareamento sem exigir código.</li>
+        <li>No MakeCode, adicione a extensão <b>NeoPixel</b>. Não use Bluetooth: o editor avisa que é incompatível com NeoPixel.</li>
         <li>Troque para a aba JavaScript, cole o código abaixo e volte para Blocos.</li>
+        <li>Baixe o programa na micro:bit, conecte o cabo USB e clique em Conectar por USB nesta página.</li>
       </ol>
       <div class="acoes" style="margin:0 0 10px"><button id="btnCopiar">Copiar código</button></div>
       <pre id="codigo"></pre>
@@ -147,10 +146,6 @@
 </main>
 
 <script>
-const UART_SERVICE = "6e400001-b5a3-f393-e0a9-e50e24dcca9e";
-const UART_RX      = "6e400002-b5a3-f393-e0a9-e50e24dcca9e"; // navegador escreve aqui
-const UART_TX      = "6e400003-b5a3-f393-e0a9-e50e24dcca9e"; // micro:bit envia por aqui
-
 const PALETA = [
   ["Roxo", "#8000ff"], ["Vermelho", "#ff0000"], ["Laranja", "#ff6a00"], ["Amarelo", "#ffd000"],
   ["Verde", "#00d000"], ["Azul", "#0040ff"], ["Branco", "#ffffff"]
@@ -172,7 +167,6 @@ function mostrarEstado(txt, on) {
   $("estadoTxt").textContent = txt;
   $("estado").classList.toggle("on", !!on);
   $("btnDesconectar").disabled = !on;
-  $("btnBle").disabled = !!on;
   $("btnUsb").disabled = !!on;
 }
 
@@ -185,53 +179,6 @@ function enviar(linha) {
              .catch(e => { log("Erro ao enviar: " + e.message); });
 }
 const hexParaRgb = h => [1, 3, 5].map(i => parseInt(h.slice(i, i + 2), 16));
-
-/* ---------- Bluetooth ---------- */
-async function conectarBle() {
-  if (!navigator.bluetooth) {
-    aviso("Este navegador não tem Web Bluetooth. Use Chrome ou Edge no computador ou no Android. Safari e iPhone não funcionam.");
-    return;
-  }
-  aviso("");
-  try {
-    const dispositivo = await navigator.bluetooth.requestDevice({
-      filters: [{ namePrefix: "BBC micro:bit" }],
-      optionalServices: [UART_SERVICE]
-    });
-    mostrarEstado("Conectando…", false);
-    const servidor = await dispositivo.gatt.connect();
-    const servico = await servidor.getPrimaryService(UART_SERVICE);
-    const rx = await servico.getCharacteristic(UART_RX);
-    let tx = null;
-    try {
-      tx = await servico.getCharacteristic(UART_TX);
-      await tx.startNotifications();
-      tx.addEventListener("characteristicvaluechanged", e => {
-        log("< " + new TextDecoder().decode(e.target.value).trim());
-      });
-    } catch (_) { /* recebimento é opcional */ }
-
-    dispositivo.addEventListener("gattserverdisconnected", () => {
-      conexao = null; mostrarEstado("Desconectado", false); log("Bluetooth desconectado.");
-    });
-    conexao = {
-      tipo: "Bluetooth",
-      async enviar(texto) {
-        const bytes = new TextEncoder().encode(texto);
-        for (let i = 0; i < bytes.length; i += 20) {
-          await rx.writeValue(bytes.slice(i, i + 20));
-        }
-      },
-      async fechar() { if (dispositivo.gatt.connected) dispositivo.gatt.disconnect(); }
-    };
-    mostrarEstado("Conectado por Bluetooth", true);
-    log("Conectado a " + (dispositivo.name || "micro:bit") + ".");
-    sincronizar();
-  } catch (e) {
-    mostrarEstado("Desconectado", false);
-    if (e.name !== "NotFoundError") aviso("Não consegui conectar por Bluetooth: " + e.message);
-  }
-}
 
 /* ---------- USB (porta serial) ---------- */
 async function conectarUsb() {
@@ -378,7 +325,6 @@ $("brilho").addEventListener("input", e => {
   temporizador = setTimeout(() => enviar(`B,${estado.brilho}`), 80);
 });
 
-$("btnBle").addEventListener("click", conectarBle);
 $("btnUsb").addEventListener("click", conectarUsb);
 $("btnDesconectar").addEventListener("click", desconectar);
 
@@ -416,10 +362,6 @@ function receber(msg: string) {
     desenhar()
 }
 
-bluetooth.startUartService()
-bluetooth.onUartDataReceived(serial.delimiters(Delimiters.NewLine), function () {
-    receber(bluetooth.uartReadUntil(serial.delimiters(Delimiters.NewLine)))
-})
 serial.onDataReceived(serial.delimiters(Delimiters.NewLine), function () {
     receber(serial.readUntil(serial.delimiters(Delimiters.NewLine)))
 })
