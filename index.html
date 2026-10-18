@@ -134,9 +134,9 @@ $('btnConectar').onclick = async () => {
   if (dispositivo && dispositivo.gatt.connected) { dispositivo.gatt.disconnect(); return; }
   try {
     setStatus('Procurando…', 'busy');
-    // Aceita qualquer dispositivo que se chame "BBC micro:bit" OU que ofereça o serviço UART
+    // Sem filtro nenhum: lista TODOS os dispositivos Bluetooth que o celular enxerga
     dispositivo = await navigator.bluetooth.requestDevice({
-      filters: [{ namePrefix: 'BBC micro:bit' }, { services: [UART_SERVICE] }],
+      acceptAllDevices: true,
       optionalServices: [UART_SERVICE]
     });
     log('escolhido: ' + (dispositivo.name || '(sem nome)'));
