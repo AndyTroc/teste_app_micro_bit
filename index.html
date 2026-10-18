@@ -190,7 +190,13 @@ async function enviar(manual) {
       const texto = paraTexto();
       const bytes = new TextEncoder().encode(texto);
       for (let i = 0; i < bytes.length; i += TAM_PACOTE) {
-        await caracteristica.writeValue(bytes.slice(i, i + TAM_PACOTE));
+        const pedaco = bytes.slice(i, i + TAM_PACOTE);
+        if (caracteristica.properties.writeWithoutResponse && caracteristica.writeValueWithoutResponse) {
+          await caracteristica.writeValueWithoutResponse(pedaco);
+        } else {
+          await caracteristica.writeValue(pedaco);
+        }
+        await new Promise(r => setTimeout(r, 15)); // pequena pausa entre pedaços
       }
       log('Enviado: ' + texto.trim());
     } while (pendente);
@@ -232,7 +238,8 @@ async function conectar(todos) {
     const servico = await servidor.getPrimaryService(UART_SERVICE);
     log('Serviço UART encontrado.');
     caracteristica = await servico.getCharacteristic(UART_RX);
-    log('Característica RX encontrada.');
+    log('Característica RX encontrada. Permite: ' +
+      Object.entries(caracteristica.properties).filter(([, v]) => v).map(([k]) => k).join(', '));
 
     setStatus('Conectado a ' + (dispositivo.name || 'micro:bit'), 'on');
     $('btnConectar').textContent = 'Desconectar';
