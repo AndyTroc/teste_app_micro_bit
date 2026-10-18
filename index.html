@@ -48,7 +48,7 @@
 </head>
 <body>
 
-<h1>🔵 Teste Bluetooth UART – micro:bit V4</h1>
+<h1>🔵 Teste Bluetooth UART – micro:bit</h1>
 
 <div class="card">
   <button id="btnConectar" class="principal">Conectar à micro:bit</button>
@@ -201,8 +201,8 @@ async function enviar(manual) {
       log('Enviado: ' + texto.trim());
     } while (pendente);
   } catch (err) {
-    log('Erro ao enviar: ' + err.message);
-    setStatus('Erro ao enviar', 'busy');
+    log('Erro ao enviar: ' + err.name + ' - ' + err.message);
+    setStatus('Erro ao enviar: ' + err.name + ' - ' + err.message, 'busy');
   } finally {
     enviando = false;
   }
